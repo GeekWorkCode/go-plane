@@ -2,64 +2,8 @@ package main
 
 import (
 	"os"
-	"reflect"
 	"testing"
 )
-
-func TestGetIssueKeys(t *testing.T) {
-	tests := []struct {
-		name         string
-		ref          string
-		issuePattern string
-		want         []string
-	}{
-		{
-			name:         "default pattern",
-			ref:          "This is a test ABC-1234 and another DEF-5678",
-			issuePattern: "",
-			want:         []string{"ABC-1234", "DEF-5678"},
-		},
-		{
-			name:         "custom pattern",
-			ref:          "This is a test ABC-1234 and another DEF-5678",
-			issuePattern: `([A-Z]{3}-[0-9]{4})`,
-			want:         []string{"ABC-1234", "DEF-5678"},
-		},
-		{
-			name:         "no matches",
-			ref:          "This is a test with no issues",
-			issuePattern: "",
-			want:         []string{},
-		},
-		{
-			name:         "duplicate issues",
-			ref:          "This is a test ABC-1234 and another ABC-1234",
-			issuePattern: "",
-			want:         []string{"ABC-1234"},
-		},
-		{
-			name:         "multiple issues in commit message",
-			ref:          "Fix issues PROJ-123, PROJ-456 and PROJ-789",
-			issuePattern: "",
-			want:         []string{"PROJ-123", "PROJ-456", "PROJ-789"},
-		},
-		{
-			name:         "issue keys with various formats",
-			ref:          "Working on PROJ-123 and PROJECT-456",
-			issuePattern: "",
-			want:         []string{"PROJ-123", "PROJECT-456"},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := getIssueKeys(tt.ref, tt.issuePattern)
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("getIssueKeys() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
 
 func TestLoadConfig(t *testing.T) {
 	// 保存原始环境变量
@@ -111,4 +55,21 @@ func TestLoadConfig(t *testing.T) {
 	if !config.debug {
 		t.Errorf("Expected debug to be %v, got %v", true, config.debug)
 	}
+}
+
+func TestFindIssueBySequenceID(t *testing.T) {
+	// Skip the test in short mode - this is a placeholder for when proper mocking is implemented
+	if testing.Short() {
+		t.Skip("Skipping test in short mode")
+	}
+
+	// This test would require mocking the Plane client's Issues.GetBySequenceID method
+	// For proper testing, we would need to:
+	// 1. Create a mock Plane client
+	// 2. Mock the GetBySequenceID method to return a predefined issue
+	// 3. Call findIssueBySequenceID with the mock client
+	// 4. Assert that the returned issue matches our expectations
+
+	// This is a placeholder for future implementation
+	t.Log("Test for findIssueBySequenceID with GetBySequenceID is a placeholder")
 }

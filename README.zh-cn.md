@@ -67,7 +67,6 @@ docker run --rm \
 | PLANE_TOKEN          | 您的 Plane API 令牌                             | plane_api_123456789              |
 | PLANE_WORKSPACE_SLUG | 您的 Plane 工作区标识                           | my-workspace                     |
 | PLANE_REF            | 要分析的 git 提交消息或引用                     | "修复问题 PROJ-123: 更新 API"    |
-| PLANE_ISSUE_PATTERN  | 匹配问题键的正则表达式（可选）                  | ([A-Z]+-[0-9]+)                  |
 | PLANE_TO_STATE       | 问题要转换的状态（可选）                        | "已完成"                         |
 | PLANE_COMMENT        | 要添加到问题的评论（可选）                      | "在提交中修复: $GITHUB_SHA"      |
 | PLANE_ASSIGNEE       | 要分配问题的用户名（可选）                      | "john.doe"                       |
@@ -137,13 +136,18 @@ jobs:
 
 ## 常见问题
 
-### 无法检测到我的问题键
+### 问题格式
 
-确保您的问题键符合默认格式，如 "PROJ-123"。如果您使用不同的格式，可以使用 `PLANE_ISSUE_PATTERN` 环境变量自定义正则表达式：
+工具会提取格式为 "PROJ-123" 的问题键，其中 "PROJ" 是项目标识符，"123" 是问题序列ID。问题键可以位于提交消息的任何位置，例如：
 
-```bash
-# 例如，如果您的问题键格式为 "PROJ_123"
-export PLANE_ISSUE_PATTERN="([A-Z]+_[0-9]+)"
+```
+修复登录表单中的错误 PROJ-123
+```
+
+或者
+
+```
+PROJ-123 实现新功能
 ```
 
 ### API 连接问题

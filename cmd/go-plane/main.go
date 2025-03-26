@@ -57,14 +57,36 @@ func main() {
 		os.Exit(0)
 	}
 
-	// 处理issue key
-	// Process issue keys
-	issueKeys := getIssueKeys(config.ref, config.issuePattern)
-	if len(issueKeys) == 0 {
+	// 解析引用中的issue key
+	// Parse issue key from reference
+	// 尝试从提交消息中提取 WORDS-1 格式的问题key
+	// Try to extract issue key in WORDS-1 format from commit message
+	issueKeyPattern := `([A-Z][A-Z0-9]+-[0-9]+)`
+	re := regexp.MustCompile(issueKeyPattern)
+	matches := re.FindAllString(config.ref, -1)
+
+	if len(matches) == 0 {
 		log.Println("未找到issue keys")
 		log.Println("No issue keys found")
 		os.Exit(0)
 	}
+
+	// 使用第一个匹配到的issue key
+	// Use the first matched issue key
+	parts := strings.Split(matches[0], "-")
+	if len(parts) < 2 {
+		log.Println("无效的issue key格式")
+		log.Println("Invalid issue key format")
+		os.Exit(0)
+	}
+
+	// 提取项目标识符和问题序列ID
+	// Extract project identifier and issue sequence ID
+	projectIdentifier := parts[0]
+	sequenceID := parts[1]
+
+	log.Printf("处理issue: %s-%s\n", projectIdentifier, sequenceID)
+	log.Printf("Processing issue: %s-%s\n", projectIdentifier, sequenceID)
 
 	// 获取当前用户信息 - 假设我们无法直接获取
 	// Get current user information - assume we can't directly get it
@@ -90,9 +112,9 @@ func main() {
 		}
 	}
 
-	// 处理issues
-	// Process issues
-	issues := processIssues(planeClient, config)
+	// 处理issue
+	// Process issue
+	issues := processIssue(planeClient, config, projectIdentifier, sequenceID)
 	if len(issues) == 0 {
 		log.Println("未找到issues")
 		log.Println("No issues found")
@@ -118,39 +140,28 @@ func main() {
 	}
 }
 
-// 处理issues
-// Process issues
-func processIssues(planeClient *plane.Plane, config Config) []models.Issue {
+// 处理单个issue
+// Process single issue
+func processIssue(planeClient *plane.Plane, config Config, projectIdentifier, sequenceID string) []models.Issue {
 	var issues []models.Issue
 
-	for _, key := range getIssueKeys(config.ref, config.issuePattern) {
-		// 提取项目标识符和问题编号
-		// Extract project identifier and issue number
-		parts := strings.Split(key, "-")
-		if len(parts) != 2 {
-			log.Printf("警告: 无效的issue key: %s\n", key)
-			log.Printf("Warning: Invalid issue key: %s\n", key)
-			continue
-		}
-
-		project, err := findProjectByIdentifier(planeClient, config.workspaceSlug, parts[0])
-		if err != nil {
-			log.Printf("警告: 无法找到项目 '%s': %v\n", parts[0], err)
-			log.Printf("Warning: Could not find project '%s': %v\n", parts[0], err)
-			continue
-		}
-
-		issue, err := findIssueByNumber(planeClient, config.workspaceSlug, project.ID, parts[1])
-		if err != nil {
-			log.Printf("警告: 无法找到issue '%s': %v\n", key, err)
-			log.Printf("Warning: Could not find issue '%s': %v\n", key, err)
-			continue
-		}
-
-		issues = append(issues, issue)
-		log.Printf("找到issue: %s (%s) - %s\n", key, issue.ID, issue.Name)
-		log.Printf("Found issue: %s (%s) - %s\n", key, issue.ID, issue.Name)
+	project, err := findProjectByIdentifier(planeClient, config.workspaceSlug, projectIdentifier)
+	if err != nil {
+		log.Printf("警告: 无法找到项目 '%s': %v\n", projectIdentifier, err)
+		log.Printf("Warning: Could not find project '%s': %v\n", projectIdentifier, err)
+		return issues
 	}
+
+	issue, err := findIssueBySequenceID(planeClient, config.workspaceSlug, project.ID, sequenceID)
+	if err != nil {
+		log.Printf("警告: 无法找到issue '%s-%s': %v\n", projectIdentifier, sequenceID, err)
+		log.Printf("Warning: Could not find issue '%s-%s': %v\n", projectIdentifier, sequenceID, err)
+		return issues
+	}
+
+	issues = append(issues, issue)
+	log.Printf("找到issue: %s-%s (%s) - %s\n", projectIdentifier, sequenceID, issue.ID, issue.Name)
+	log.Printf("Found issue: %s-%s (%s) - %s\n", projectIdentifier, sequenceID, issue.ID, issue.Name)
 
 	return issues
 }
@@ -162,6 +173,8 @@ func processAssignee(planeClient *plane.Plane, config Config, issues []models.Is
 		log.Printf("将issue %s 分配给 %s\n", issue.ID, assignee.DisplayName)
 		log.Printf("Assigning issue %s to %s\n", issue.ID, assignee.DisplayName)
 
+		// 使用标准更新方法 - client.Issues.Update(workspaceSlug, issue.Project, issue.ID, &api.IssueUpdateRequest{...})
+		// Standard update method - client.Issues.Update(workspaceSlug, issue.Project, issue.ID, &api.IssueUpdateRequest{...})
 		updateReq := &api.IssueUpdateRequest{
 			AssigneeID: assignee.ID,
 		}
@@ -204,6 +217,8 @@ func processState(planeClient *plane.Plane, config Config, issues []models.Issue
 		log.Printf("将issue %s 状态更新为 %s\n", issue.ID, config.toState)
 		log.Printf("Updating issue %s state to %s\n", issue.ID, config.toState)
 
+		// 使用标准更新方法 - client.Issues.Update(workspaceSlug, issue.Project, issue.ID, &api.IssueUpdateRequest{...})
+		// Standard update method - client.Issues.Update(workspaceSlug, issue.Project, issue.ID, &api.IssueUpdateRequest{...})
 		updateReq := &api.IssueUpdateRequest{
 			State: stateID,
 		}
@@ -216,43 +231,6 @@ func processState(planeClient *plane.Plane, config Config, issues []models.Issue
 	}
 }
 
-// 获取issue keys
-// Get issue keys
-func getIssueKeys(ref, issuePattern string) []string {
-	if ref == "" {
-		return []string{}
-	}
-
-	if issuePattern == "" {
-		issuePattern = `([A-Z][A-Z0-9]+-[0-9]+)`
-	}
-
-	// Remove commas and normalize spaces
-	cleanRef := strings.ReplaceAll(ref, ",", " ")
-	cleanRef = regexp.MustCompile(`\s+`).ReplaceAllString(cleanRef, " ")
-
-	re := regexp.MustCompile(issuePattern)
-	matches := re.FindAllString(cleanRef, -1)
-
-	if matches == nil {
-		return []string{}
-	}
-
-	// 去重
-	// Remove duplicates
-	uniqueKeys := make(map[string]struct{})
-	for _, match := range matches {
-		uniqueKeys[match] = struct{}{}
-	}
-
-	var keys []string
-	for key := range uniqueKeys {
-		keys = append(keys, key)
-	}
-
-	return keys
-}
-
 // 配置结构体
 // Configuration struct
 type Config struct {
@@ -261,7 +239,6 @@ type Config struct {
 	token         string
 	workspaceSlug string
 	ref           string
-	issuePattern  string
 	toState       string
 	comment       string
 	assignee      string
@@ -278,7 +255,6 @@ func loadConfig() Config {
 		token:         util.GetGlobalValue("PLANE_TOKEN"),
 		workspaceSlug: util.GetGlobalValue("PLANE_WORKSPACE_SLUG"),
 		ref:           util.GetGlobalValue("PLANE_REF"),
-		issuePattern:  util.GetGlobalValue("PLANE_ISSUE_PATTERN"),
 		toState:       util.GetGlobalValue("PLANE_TO_STATE"),
 		comment:       util.GetGlobalValue("PLANE_COMMENT"),
 		assignee:      util.GetGlobalValue("PLANE_ASSIGNEE"),
@@ -326,25 +302,27 @@ func findProjectByIdentifier(planeClient *plane.Plane, workspaceSlug, identifier
 	return models.Project{}, fmt.Errorf("未找到项目: %s", identifier)
 }
 
-// 根据编号查找issue
-// Find issue by number
-func findIssueByNumber(planeClient *plane.Plane, workspaceSlug, projectID, number string) (models.Issue, error) {
-	issues, err := planeClient.Issues.List(workspaceSlug, projectID)
+// 根据序列ID查找issue
+// Find issue by sequence ID
+func findIssueBySequenceID(planeClient *plane.Plane, workspaceSlug, projectID, sequenceID string) (models.Issue, error) {
+	// 直接使用序列ID查询issue
+	// Directly query issue by sequence ID
+	// 标准方式获取issue: client.Issues.GetBySequenceID(workspaceSlug, sequenceID)
+	// Standard method to get issue: client.Issues.GetBySequenceID(workspaceSlug, sequenceID)
+	issue, err := planeClient.Issues.GetBySequenceID(workspaceSlug, sequenceID)
 	if err != nil {
-		return models.Issue{}, fmt.Errorf("获取issue列表失败: %w", err)
+		return models.Issue{}, fmt.Errorf("通过序列ID获取issue失败: %w", err)
 	}
 
-	// 由于models.Issue没有SequenceID字段，我们需要在名称中查找编号
-	// Since models.Issue doesn't have a SequenceID field, we need to look for the number in the name
-	for _, issue := range issues {
-		// 在issue名称中查找编号
-		// Look for the number in the issue name
-		if strings.Contains(issue.Name, number) {
-			return issue, nil
-		}
+	// 验证issue属于正确的项目
+	// Verify the issue belongs to the correct project
+	if issue.Project != projectID {
+		return models.Issue{}, fmt.Errorf("找到的issue不属于项目 %s", projectID)
 	}
 
-	return models.Issue{}, fmt.Errorf("未找到issue: %s", number)
+	// 标准方式更新issue: client.Issues.Update(workspaceSlug, issue.Project, issue.ID, &api.IssueUpdateRequest{...})
+	// Standard method to update issue: client.Issues.Update(workspaceSlug, issue.Project, issue.ID, &api.IssueUpdateRequest{...})
+	return *issue, nil
 }
 
 // 添加评论

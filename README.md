@@ -67,7 +67,6 @@ You can configure `go-plane` using environment variables:
 | PLANE_TOKEN          | Your Plane API token                                     | plane_api_123456789              |
 | PLANE_WORKSPACE_SLUG | Your Plane workspace slug                                | my-workspace                     |
 | PLANE_REF            | The git commit message or reference to analyze           | "Fix issue PROJ-123: Update API" |
-| PLANE_ISSUE_PATTERN  | Regular expression to match issue keys (optional)        | ([A-Z]+-[0-9]+)                  |
 | PLANE_TO_STATE       | The state to transition the issues to (optional)         | "Done"                           |
 | PLANE_COMMENT        | Comment to add to the issues (optional)                  | "Fixed in commit: $GITHUB_SHA"   |
 | PLANE_ASSIGNEE       | Username to assign the issues to (optional)              | "john.doe"                       |
@@ -137,13 +136,18 @@ jobs:
 
 ## FAQ
 
-### My issue keys aren't being detected
+### Issue format
 
-Make sure your issue keys match the default format, like "PROJ-123". If you use a different format, you can customize the regular expression using the `PLANE_ISSUE_PATTERN` environment variable:
+The tool extracts issue keys in the format "PROJ-123" where "PROJ" is the project identifier and "123" is the sequence ID. The issue key can be anywhere in your commit message, for example:
 
-```bash
-# For example, if your issue keys are formatted as "PROJ_123"
-export PLANE_ISSUE_PATTERN="([A-Z]+_[0-9]+)"
+```
+Fix bug in login form PROJ-123
+```
+
+or
+
+```
+PROJ-123 Implement new feature
 ```
 
 ### API connection problems

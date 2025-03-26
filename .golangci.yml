@@ -1,7 +1,5 @@
+version: "2"
 linters:
-  enable-all: false
-  disable-all: true
-  fast: false
   enable:
     - bodyclose
     - dogsled
