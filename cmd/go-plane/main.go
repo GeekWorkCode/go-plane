@@ -12,7 +12,7 @@ import (
 
 	"github.com/GeekWorkCode/go-plane/pkg/markdown"
 	"github.com/GeekWorkCode/go-plane/pkg/util"
-	"github.com/GeekWorkCode/plane-api-go"
+	plane "github.com/GeekWorkCode/plane-api-go"
 	"github.com/GeekWorkCode/plane-api-go/api"
 	"github.com/GeekWorkCode/plane-api-go/models"
 	"github.com/joho/godotenv"
