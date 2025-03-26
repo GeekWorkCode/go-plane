@@ -1,4 +1,3 @@
-version: "2"
 linters:
   enable:
     - bodyclose
@@ -29,5 +28,6 @@ linters:
     - unparam
     - unused
     - whitespace
+
 run:
   timeout: 3m
