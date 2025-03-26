@@ -1,0 +1,4 @@
+github.com/GeekWorkCode/plane-api-go v0.2.0 h1:SNRVFi5VsgJyQ7PBLxTzBr69M3A1T5z7JGyA5DxCKnY=
+github.com/GeekWorkCode/plane-api-go v0.2.0/go.mod h1:um5/1Vbh7yMPsDdaL050uSy66U2xJyExMc1c4CmhRfM=
+github.com/joho/godotenv v1.5.1 h1:7eLL/+HRGLY0ldzfGMeQkb7vMd0as4CfYvUVzLqw0N0=
+github.com/joho/godotenv v1.5.1/go.mod h1:f4LDr5Voq0i2e/R5DDNOoa2zzDfwtkZa6DnEwAbqwq4=
