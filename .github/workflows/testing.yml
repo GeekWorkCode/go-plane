@@ -8,32 +8,41 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout repository # 检出代码
         uses: actions/checkout@v4
 
-      - name: Setup go
+      - name: Setup Go # 设置 Go 环境
         uses: actions/setup-go@v5
         with:
-          go-version: "1.24.0"
+          go-version: "1.24.0" # 使用与测试相同的 Go 版本
+          cache: false # golangci-lint-action 会处理自己的缓存
 
-      - name: Install dependencies
-        run: |
-          go mod download
-          go mod tidy
+      # 可选：在 linting 前缓存 Go Modules (通常 linting 本身不严格需要)
+      # - uses: actions/cache@v4
+      #   with:
+      #     path: ~/go/pkg/mod
+      #     key: ${{ runner.os }}-go-mod-${{ hashFiles('**/go.sum') }}
+      #     restore-keys: |
+      #       ${{ runner.os }}-go-mod-
+      # 可选：如果 linter 需要完整的依赖信息，则下载模块
+      # - name: Download Go Modules
+      #   run: go mod download
+      - name: Run golangci-lint # 运行 golangci-lint
+        uses: golangci/golangci-lint-action@v6 # 使用较新版本
+        with:
+          # 可选：指定版本，例如 v1.58.1 或已知支持 Go 1.24 的最新版
+          # version: v1.58.1
+          # 可选：指定配置文件
+          # config: .golangci.yml
+          # 可选：如果是 PR，仅显示新发现的问题
+          # only-new-issues: true
+          args: --verbose # 在这里传递额外的参数，比如 verbose
+        # 如果你的 linter 或代码需要环境变量，在此处添加
+        # env:
+        #   CGO_ENABLED: 0
 
-      - name: Install golangci-lint
-        run: |
-          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.55.2
-          export PATH=$PATH:$(go env GOPATH)/bin
-          golangci-lint --version
-
-      - name: Run golangci-lint
-        run: |
-          export PATH=$PATH:$(go env GOPATH)/bin
-          golangci-lint run --verbose
-
-      - uses: hadolint/hadolint-action@v3.1.0
-        name: hadolint for Dockerfile
+      - name: Hadolint for Dockerfile # 运行 Hadolint 检查 Dockerfile
+        uses: hadolint/hadolint-action@v3.1.0
         with:
           dockerfile: docker/Dockerfile
 
@@ -41,49 +50,54 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        go: [1.24.0]
-        include:
-          - os: ubuntu-latest
-            go-build: ~/.cache/go-build
+        go: ["1.24.0"] # Go 版本保持为字符串
+        # 移除了 include 块, Go 构建缓存路径由 setup-go 处理更好
     name: ${{ matrix.os }} @ Go ${{ matrix.go }}
     runs-on: ${{ matrix.os }}
     env:
       GO111MODULE: on
       GOPROXY: https://proxy.golang.org
     steps:
-      - name: Checkout Code
+      - name: Checkout Code # 检出代码
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.ref }}
+        # 无需 ref: ${{ github.ref }}, checkout@v4 对 push/PR 会正确默认
 
-      - name: Set up Go ${{ matrix.go }}
+      - name: Set up Go ${{ matrix.go }} # 设置 Go 环境
         uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go }}
+          # setup-go action 如果 cache: true (默认值)，会隐式处理 Go 构建缓存 (GOCACHE)
+          # cache: true # 这是默认值，如果希望更清晰可以显式添加
 
-      - uses: actions/cache@v4
+      # 修正了 setup-go 缓存方式下的缓存路径
+      - name: Cache Go Modules # 缓存 Go 模块
+        uses: actions/cache@v4
         with:
-          path: |
-            ${{ matrix.go-build }}
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          # Go 模块缓存路径
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-mod-${{ hashFiles('**/go.sum') }}
           restore-keys: |
-            ${{ runner.os }}-go-
+            ${{ runner.os }}-go-mod-
 
-      - name: Install dependencies
+      - name: Install dependencies # 安装依赖
         run: |
           go mod download
           go mod tidy
 
-      - name: Run Tests
+      - name: Run Tests # 运行测试
         run: |
           make test
 
-      - name: Run Benchmarks
+      - name: Run Benchmarks # 运行基准测试
         run: |
           make bench
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
-        with:
-          flags: ${{ matrix.os }},go-${{ matrix.go }}
+      - name: Upload coverage to Codecov # 上传覆盖率到 Codecov
+        uses: codecov/codecov-action@v4 # 使用最新的主版本
+        # 移除了 token，对于公共仓库或通过 GitHub App 集成通常不需要
+        # 如果需要，添加 token:
+        # with:
+        #   token: ${{ secrets.CODECOV_TOKEN }}
+        # 移除了 flags，Codecov 通常会自动检测环境。如果需要分组，可以加回来。
+        # with:
+        #  flags: ${{ matrix.os }},go-${{ matrix.go }}
