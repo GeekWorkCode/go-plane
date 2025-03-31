@@ -93,7 +93,7 @@ jobs:
           make bench
 
       - name: Upload coverage to Codecov # 上传覆盖率到 Codecov
-        uses: codecov/codecov-action@v4 # 使用最新的主版本
+        uses: codecov/codecov-action@v5 # 使用最新的主版本
         # 移除了 token，对于公共仓库或通过 GitHub App 集成通常不需要
         # 如果需要，添加 token:
         # with:
