@@ -3,12 +3,12 @@ FROM alpine:3.20
 ARG TARGETOS
 ARG TARGETARCH
 
-LABEL maintainer="Your Name <your.email@example.com>" \
+LABEL maintainer="GeekWorkCode <asd486@live.com>" \
   org.label-schema.name="Plane API CLI" \
-  org.label-schema.vendor="Your Name" \
+  org.label-schema.vendor="GeekWorkCode" \
   org.label-schema.schema-version="1.0"
 
-LABEL org.opencontainers.image.source=https://github.com/yourname/go-plane
+LABEL org.opencontainers.image.source=https://github.com/GeekWorkCode/go-plane
 LABEL org.opencontainers.image.description="Plane API CLI"
 LABEL org.opencontainers.image.licenses=MIT
 

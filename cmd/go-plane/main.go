@@ -1,14 +1,11 @@
 package main
 
 import (
-	"crypto/tls"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"regexp"
 	"strings"
-	"time"
 
 	"github.com/GeekWorkCode/go-plane/pkg/markdown"
 	"github.com/GeekWorkCode/go-plane/pkg/util"
@@ -145,14 +142,16 @@ func main() {
 func processIssue(planeClient *plane.Plane, config Config, projectIdentifier, sequenceID string) []models.Issue {
 	var issues []models.Issue
 
-	project, err := findProjectByIdentifier(planeClient, config.workspaceSlug, projectIdentifier)
+	// 验证项目是否存在
+	// Verify project exists
+	_, err := findProjectByIdentifier(planeClient, config.workspaceSlug, projectIdentifier)
 	if err != nil {
 		log.Printf("警告: 无法找到项目 '%s': %v\n", projectIdentifier, err)
 		log.Printf("Warning: Could not find project '%s': %v\n", projectIdentifier, err)
 		return issues
 	}
 
-	issue, err := findIssueBySequenceID(planeClient, config.workspaceSlug, project.ID, sequenceID)
+	issue, err := findIssueBySequenceID(planeClient, config.workspaceSlug, sequenceID)
 	if err != nil {
 		log.Printf("警告: 无法找到issue '%s-%s': %v\n", projectIdentifier, sequenceID, err)
 		log.Printf("Warning: Could not find issue '%s-%s': %v\n", projectIdentifier, sequenceID, err)
@@ -173,10 +172,10 @@ func processAssignee(planeClient *plane.Plane, config Config, issues []models.Is
 		log.Printf("将issue %s 分配给 %s\n", issue.ID, assignee.DisplayName)
 		log.Printf("Assigning issue %s to %s\n", issue.ID, assignee.DisplayName)
 
-		// 使用标准更新方法 - client.Issues.Update(workspaceSlug, issue.Project, issue.ID, &api.IssueUpdateRequest{...})
-		// Standard update method - client.Issues.Update(workspaceSlug, issue.Project, issue.ID, &api.IssueUpdateRequest{...})
+		// 使用分配人名称更新问题
+		// Update issue using assignee name
 		updateReq := &api.IssueUpdateRequest{
-			AssigneeID: assignee.ID,
+			AssigneeNames: []string{assignee.DisplayName},
 		}
 
 		_, err := planeClient.Issues.Update(config.workspaceSlug, issue.Project, issue.ID, updateReq)
@@ -191,39 +190,16 @@ func processAssignee(planeClient *plane.Plane, config Config, issues []models.Is
 // Process issue state update
 func processState(planeClient *plane.Plane, config Config, issues []models.Issue) {
 	for _, issue := range issues {
-		states, err := planeClient.States.List(config.workspaceSlug, issue.Project)
-		if err != nil {
-			log.Printf("获取状态列表失败: %v\n", err)
-			log.Printf("Failed to get states: %v\n", err)
-			continue
-		}
-
-		// 根据名称查找状态ID
-		// Find state ID by name
-		var stateID string
-		for _, state := range states {
-			if strings.EqualFold(state.Name, config.toState) {
-				stateID = state.ID
-				break
-			}
-		}
-
-		if stateID == "" {
-			log.Printf("警告: 无法找到状态 '%s'\n", config.toState)
-			log.Printf("Warning: Could not find state '%s'\n", config.toState)
-			continue
-		}
-
 		log.Printf("将issue %s 状态更新为 %s\n", issue.ID, config.toState)
 		log.Printf("Updating issue %s state to %s\n", issue.ID, config.toState)
 
-		// 使用标准更新方法 - client.Issues.Update(workspaceSlug, issue.Project, issue.ID, &api.IssueUpdateRequest{...})
-		// Standard update method - client.Issues.Update(workspaceSlug, issue.Project, issue.ID, &api.IssueUpdateRequest{...})
+		// 使用状态名称更新问题
+		// Update issue using state name
 		updateReq := &api.IssueUpdateRequest{
-			State: stateID,
+			StateName: config.toState,
 		}
 
-		_, err = planeClient.Issues.Update(config.workspaceSlug, issue.Project, issue.ID, updateReq)
+		_, err := planeClient.Issues.Update(config.workspaceSlug, issue.Project, issue.ID, updateReq)
 		if err != nil {
 			log.Printf("更新状态失败: %v\n", err)
 			log.Printf("Failed to update state: %v\n", err)
@@ -263,28 +239,6 @@ func loadConfig() Config {
 	}
 }
 
-// 创建HTTP客户端
-// Create HTTP client
-func createHTTPClient(config Config) *http.Client {
-	transport := &http.Transport{
-		Proxy:             http.ProxyFromEnvironment,
-		DisableKeepAlives: false,
-	}
-
-	// 如果insecure为true，跳过TLS验证
-	// Skip TLS verification if insecure is true
-	if util.ToBool(config.insecure) {
-		transport.TLSClientConfig = &tls.Config{
-			InsecureSkipVerify: true,
-		}
-	}
-
-	return &http.Client{
-		Transport: transport,
-		Timeout:   30 * time.Second,
-	}
-}
-
 // 根据项目标识符查找项目
 // Find project by identifier
 func findProjectByIdentifier(planeClient *plane.Plane, workspaceSlug, identifier string) (models.Project, error) {
@@ -304,24 +258,14 @@ func findProjectByIdentifier(planeClient *plane.Plane, workspaceSlug, identifier
 
 // 根据序列ID查找issue
 // Find issue by sequence ID
-func findIssueBySequenceID(planeClient *plane.Plane, workspaceSlug, projectID, sequenceID string) (models.Issue, error) {
+func findIssueBySequenceID(planeClient *plane.Plane, workspaceSlug, sequenceID string) (models.Issue, error) {
 	// 直接使用序列ID查询issue
 	// Directly query issue by sequence ID
-	// 标准方式获取issue: client.Issues.GetBySequenceID(workspaceSlug, sequenceID)
-	// Standard method to get issue: client.Issues.GetBySequenceID(workspaceSlug, sequenceID)
 	issue, err := planeClient.Issues.GetBySequenceID(workspaceSlug, sequenceID)
 	if err != nil {
 		return models.Issue{}, fmt.Errorf("通过序列ID获取issue失败: %w", err)
 	}
 
-	// 验证issue属于正确的项目
-	// Verify the issue belongs to the correct project
-	if issue.Project != projectID {
-		return models.Issue{}, fmt.Errorf("找到的issue不属于项目 %s", projectID)
-	}
-
-	// 标准方式更新issue: client.Issues.Update(workspaceSlug, issue.Project, issue.ID, &api.IssueUpdateRequest{...})
-	// Standard method to update issue: client.Issues.Update(workspaceSlug, issue.Project, issue.ID, &api.IssueUpdateRequest{...})
 	return *issue, nil
 }
 
@@ -341,9 +285,14 @@ func addComments(planeClient *plane.Plane, config Config, issues []models.Issue,
 		log.Printf("为issue %s 添加评论\n", issue.ID)
 		log.Printf("Adding comment to issue %s\n", issue.ID)
 
-		_, err := planeClient.Comments.Create(config.workspaceSlug, issue.Project, issue.ID, &api.CommentCreateRequest{
+		// 使用显示名称创建评论
+		// Create comment using display name
+		commentReq := &api.CommentRequest{
 			CommentHTML: commentText,
-		})
+			DisplayName: user.DisplayName,
+		}
+
+		_, err := planeClient.Comments.Create(config.workspaceSlug, issue.Project, issue.ID, commentReq)
 		if err != nil {
 			log.Printf("添加评论失败: %v\n", err)
 			log.Printf("Failed to add comment: %v\n", err)
