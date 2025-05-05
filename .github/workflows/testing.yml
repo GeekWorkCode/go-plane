@@ -28,7 +28,7 @@ jobs:
       # - name: Download Go Modules
       #   run: go mod download
       - name: Run golangci-lint # 运行 golangci-lint
-        uses: golangci/golangci-lint-action@v6 # 使用较新版本
+        uses: golangci/golangci-lint-action@v8 # 使用较新版本
         with:
           # 可选：指定版本，例如 v1.58.1 或已知支持 Go 1.24 的最新版
           # version: v1.58.1
