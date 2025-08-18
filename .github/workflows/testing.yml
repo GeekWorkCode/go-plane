@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository # 检出代码
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Go # 设置 Go 环境
         uses: actions/setup-go@v5
@@ -59,7 +59,7 @@ jobs:
       GOPROXY: https://proxy.golang.org
     steps:
       - name: Checkout Code # 检出代码
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         # 无需 ref: ${{ github.ref }}, checkout@v4 对 push/PR 会正确默认
 
       - name: Set up Go ${{ matrix.go }} # 设置 Go 环境
