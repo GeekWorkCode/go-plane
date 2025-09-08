@@ -12,7 +12,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Go # 设置 Go 环境
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: "1.24.0" # 使用与测试相同的 Go 版本
           cache: false # golangci-lint-action 会处理自己的缓存
@@ -63,7 +63,7 @@ jobs:
         # 无需 ref: ${{ github.ref }}, checkout@v4 对 push/PR 会正确默认
 
       - name: Set up Go ${{ matrix.go }} # 设置 Go 环境
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ matrix.go }}
           # setup-go action 如果 cache: true (默认值)，会隐式处理 Go 构建缓存 (GOCACHE)
